@@ -1,0 +1,11 @@
+
+__pycache__/
+*.pyc
+venv/
+.env
+.ipynb_checkpoints/
+temp_download.py
+temp_convert.py
+ml.json
+reports/figures/*.png
+reports/interactive_dashboard.html
