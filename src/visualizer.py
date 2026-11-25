@@ -1,40 +1,45 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from pathlib import Path
-def plot_top_tokens(pos_tokens,neg_tokens):
-    top_pos = dict(sorted(pos_tokens.items(),key = lambda item: item[1],reverse=True)[:15])
-    top_neg = dict(sorted(neg_tokens.items(),key = lambda item: item[1],reverse=True)[:15])
-    fig,(ax1,ax2) = plt.subplots(1,2,figsize=(14,6))
-    ax1.barh(list(top_pos.keys()),list(top_pos.values()),color = 'green')
-    ax1.set_title("Top 15 Positive Malayalm Tokens")
-    ax1.set_xlabel("Log-Odds Score")
-    ax1.invert_yaxis()
+import pandas as pd
+import plotly.express as px
+import seaborn as sns
+from matplotlib import font_manager
 
-    ax2.barh(list(top_neg.keys()),list(top_neg.values()),color = 'red')
-    ax2.set_title("Top 15 Negative Malayalm Tokens")
-    ax2.set_xlabel("Log-Odds Score")
-    ax2.invert_yaxis()
+ORDER = ['positive','negative','neutral']
 
-    plt.tight_layout()
-    project_root = Path(__file__).resolve().parent.parent
-    output_dir = project_root/"reports"/"figures"
-    output_dir.mkdir(parents = True,exist_ok=True)
+def plot_top_tokens(lexicon,path,n=15,font_path = None):
+    fp = font_manager.FontProperties(fname=font_path) if font_path else None
+    pos = lexicon[lexicon['log_odds']>0]
+    neg = lexicon[lexicon['log_odds']<0]
+    panels = (
+        (pos.nlargest(n,'log_odds'), 'green','Top Positive Tokens'),
+        (neg.nsmallest(n,'log_odds'), 'red','Top Negative Tokens')
+    )
+    fig,axes = plt.subplots(1,2,figsize=(12,6))
+    for ax,(data,color,title) in zip(axes,panels):
+        ax.barh(data['token'],data['log_odds'],color=color)
+        ax.invert_yaxis()
+        ax.set_xlabel('Log-Odds')
+        ax.set_title(title)
 
-    output_file = output_dir / "primary_enveope.png"
-    plt.savefig(output_file, dpi = 300,bbox_inches ="tight")
-    print("graph successfully saved!")
-    print("Image location:",output_file)
-    plt.close()
-    pass
-
-if __name__ == "__main__":
-    pos_tokens ={
-        "nalla" : 5.2,
-        "santhosham":4.8,
-        "super":4.5
-     }
-    neg_tokens = {
-        "mosham":5.1,
-        "veruppu":3.7,
-        "kashtam":1.3
-    }
-    plot_top_tokens(pos_tokens,neg_tokens)
+        if fp:
+            for label in ax.get_yticklabels():
+                label.set_fontproperties(fp)
+    fig.tight_layout()
+    fig.savefig(path,dpi = 150)
+    plt.close(fig)
+def plot_violin_and_confusion(df,path):
+    fig,(ax1, ax2) = plt.subplots(1,2,figsize=(12,5))
+    sns.violinplot(data=df,x='label',y='token_count',order=ORDER,ax=ax1)
+    sns.despine(ax=ax1)
+    cm = pd.crosstab(df['label'],df['predicted_polarity']).reindex(index=ORDER,columns=ORDER,fill_value=0)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax2)
+    ax2.set_xlabel('Predicted')
+    ax2.set_ylabel('Actual')
+    fig.tight_layout()
+    fig.savefig(path,dpi = 150)
+    plt.close(fig)
+def write_dashboard(lexicon, path):
+    fig = px.scatter(lexicon, x='freq', y ='log_odds',hover_name ='token',hover_data = {'pos': True,'neg': True,'neu': True},color='log_odds',color_continuous_scale='RdYlGn',title = 'Malayalam sentiment lexicon explorer')
+    fig.write_html(path, include_plotlyjs=True)
