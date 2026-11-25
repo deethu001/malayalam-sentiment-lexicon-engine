@@ -1,26 +1,62 @@
 import numpy as np
 import pandas as pd
+from collections import Counter
 
-def calculatet_log_odds(pos_counts, neg_counts, alpha = 1.0):
+class MalayalamSentimentEngine:
+    def __init__(self):
+        self.df = None
+        self.lexicon = None
 
-    words = list(set(pos_counts.keys()) | set (neg_counts.keys()))
+    def load_from_csv(self,path):
+        df = pd.read_csv(path)
 
-    pos_arr = np.array([pos_counts.get(w,0) + alpha for w in words])
-    neg_arr = np.array([neg_counts.get(w,0) + alpha for w in words])
+        df['token'] = df['review_text'].str.split()
+        df['token_count'] = df['token'].str.len()
+        df['char_count'] = df ['review_text'].str.len()
 
-    log_odds = np.log(pos_arr / pos_arr.sum()) - np.log(neg_arr / neg_arr.sum())
+        self.df = df
+        return self
 
-    return dict(zip(words, log_odds))
+    def build_lexicon(self,min_df = 1, laplace_alpha = 1.0):
+        counts = {
+            'positive': Counter(),
+            'negative': Counter(),
+            'neutral': Counter()
+        }
 
-def mask_extreme_tokens(log_odds_dict):
 
-    words = list(log_odds_dict.keys())
-    scores = np.array(list(log_odds_dict.values()))
+        for tokens, label in zip(self.df['token'], self.df['label']):
+            counts[label].update(set(tokens))
 
-    pos_mask = scores > 2.0
-    neg_mask = scores < -2.0
+        pos, neg, neu = counts['positive'],counts['negative'],counts['neutral']
 
-    pos_words = {words[i] for i in range (len(words)) if pos_mask[i]}
-    neg_words = {words[i] for i in range (len(words)) if neg_mask[i]}
+        vocab = sorted(
+            t for t in set(pos) | set(neg) | set(neu)
+            if pos[t] + neg[t] + neu[t] >= min_df
+        )
 
-    return pos_words, neg_words
+        p = np.array([pos[t] for t in vocab], dtype = float)
+
+        n = np.array([neg[t] for t in vocab], dtype = float)
+
+        u = np.array([neu[t] for t in vocab], dtype = float)
+
+        a, v = laplace_alpha, len(vocab)
+
+        log_odds = (
+            np.log((p + a) / (p.sum()+a *v))
+            - np.log((n + a) / (n.sum() + a * v))      
+        )
+        self.lexicon = pd.DataFrame({
+            'token': vocab,
+            'pos': p,
+            'neg': n,
+            'neu': u,
+            'freq': p + n + u,
+            'log_odds': log_odds,
+        }).sort_values(
+            'log_odds', ascending = False
+        ).reset_index(drop = True)
+
+        return self
+    
