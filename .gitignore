@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 .ipynb_checkpoints/
+data/processed/
 temp_download.py
 temp_convert.py
 ml.json
