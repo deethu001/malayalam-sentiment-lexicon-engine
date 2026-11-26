@@ -18,6 +18,10 @@ class MalayalamSentimentEngine:
         return self
 
     def build_lexicon(self,min_df = 1, laplace_alpha = 1.0):
+
+        if laplace_alpha <= 0:
+            raise ValueError("laplace_alpha must be greater than 0")
+        
         counts = {
             'positive': Counter(),
             'negative': Counter(),
