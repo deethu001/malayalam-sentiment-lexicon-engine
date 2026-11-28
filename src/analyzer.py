@@ -21,13 +21,11 @@ class MalayalamSentimentEngine:
 
         if laplace_alpha <= 0:
             raise ValueError("laplace_alpha must be greater than 0")
-        
         counts = {
             'positive': Counter(),
             'negative': Counter(),
             'neutral': Counter()
         }
-
 
         for tokens, label in zip(self.df['tokens'], self.df['label']):
             counts[label].update(set(tokens))
@@ -110,8 +108,7 @@ class MalayalamSentimentEngine:
         return (
             f"Reviews: {len(self.df)} | "
             f"Lexicon size: {len(self.lexicon)} | "
-            f"Mean tokens per review: "
-            f"{self.df['token_count']. mean():2f}"
+            f"Mean tokens per review:{self.df['token_count'].mean():.2f}"   
         )
 
 
